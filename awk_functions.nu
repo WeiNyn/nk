@@ -580,10 +580,11 @@ export-env {
     '
 }
 
+# Describe all string columns in a file
 export def "nk ds_str" [
-    file: string,
-    --sep: string = "\"\t\"",
-    --minp: int = 0,
+    file: string, # file path
+    --sep: string = "\"\t\"", # separator
+    --minp: int = 0, # minimum percentage of non-null values to be considered
 ] {
     let awk_code = "\'" + $env.awk_functions.describe_string + "\'"
     ^gawk -F $sep -v min_percentage=${minp} $awk_code $file | lines | split column "\t" | headers |
@@ -594,10 +595,11 @@ export def "nk ds_str" [
     upsert ModePercent {|row| $row.ModePercent | into float}
 }
 
+# Describe all number columns in a file
 export def "nk ds_num" [
-    file: string,
-    --sep: string = "\"\t\"",
-    --minp: int = 0,
+    file: string, # file path
+    --sep: string = "\"\t\"", # separator
+    --minp: int = 0, # minimum percentage of non-null values to be considered
 ] {
     let awk_code = "\'" + $env.awk_functions.describe_number + "\'"
     ^gawk -F $sep -v min_percentage=${minp} $awk_code $file | lines | split column "\t" | headers |
@@ -608,10 +610,11 @@ export def "nk ds_num" [
     upsert Mean {|row| $row.Mean | into float}
 }
 
+# Describe all boolean columns in a file
 export def "nk ds_bool" [
-    file: string,
-    --sep: string = "\"\t\"",
-    --minp: int = 0,
+    file: string, # file path
+    --sep: string = "\"\t\"", # separator
+    --minp: int = 0, # minimum percentage of non-null values to be considered
 ] {
     let awk_code = "\'" + $env.awk_functions.describe_boolean + "\'"
     ^gawk -F $sep -v min_percentage=${minp} $awk_code $file | lines | split column "\t" | headers |
@@ -622,20 +625,22 @@ export def "nk ds_bool" [
     upsert NullPercent {|row| $row.NullPercent | into float}
 }
 
+# Review all columns in a file
 export def "nk review" [
-    file: string,
-    --sep: string = "\"\t\"",
+    file: string, # file path
+    --sep: string = "\"\t\"", # separator
 ] {
     let awk_code = "\'" + $env.awk_functions.review + "\'"
     ^gawk -F $sep $awk_code $file | lines | split column "\t" | headers |
     upsert Percent {|row| $row.Percent | into float}
 }
 
+# Plot categorical columns
 export def "nk cate_plot" [
-    file: string,
-    col_name: string,
-    --sep: string = "\"\t\"",
-    --minp: int = 0,
+    file: string, # file path
+    col_name: string, # column name
+    --sep: string = "\"\t\"", # separator
+    --minp: int = 0, # minimum percentage to be plotted (categories with lower percentage will not be plotted)
 ] {
     let awk_code = "\'" + $env.awk_functions.cate_plot + "\'"
     let col_name_param = "col_name=" + $col_name
@@ -646,11 +651,12 @@ export def "nk cate_plot" [
     upsert Percent {|row| $row.Percent | into float}
 }
 
+# Plot histogram
 export def "nk hist_plot" [
-    file: string,
-    col_name: string,
-    --sep: string = "\"\t\"",
-    --bins: int = 50,
+    file: string, # file path
+    col_name: string, # column name
+    --sep: string = "\"\t\"", # separator
+    --bins: int = 50, # number of bins
 ] {
     let awk_code = "\'" + $env.awk_functions.histogram + "\'"
     let col_name_param = "col_name=" + $col_name
@@ -664,10 +670,11 @@ export def "nk hist_plot" [
     upsert To {|row| $row.To | into float}
 }
 
+# Count values
 export def "nk vc" [
-    file: string,
-    col_name: string,
-    --sep: string = "\"\t\"",
+    file: string, # file path
+    col_name: string, # column name
+    --sep: string = "\"\t\"", # separator
 ] {
     let awk_code = "\'" + $env.awk_functions.values_count + "\'"
     let col_name_param = "col_name=" + $col_name
@@ -675,11 +682,12 @@ export def "nk vc" [
     upsert Count {|row| $row.Count | into int}
 }
 
+# Filter rows
 export def "nk filter" [
-    filter: string,
-    file: string,
-    col_name: string,
-    --sep: string = "\"\t\"",
+    filter: string, # filter file path
+    file: string, # file path
+    col_name: string, # column name
+    --sep: string = "\"\t\"", # separator
 ] {
     let awk_code = "\'" + $env.awk_functions.filter + "\'"
     let col_name_param = "col_name=" + $col_name
