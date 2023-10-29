@@ -479,51 +479,149 @@ export-env {
     }
     '
 
-    $env.awk_functions.cate_plot = $env.awk_functions.lib.utils + $env.awk_functions.lib.string + '
-        # include lib/string.awk
-
+    $env.awk_functions.cate_plot = $env.awk_functions.lib.utils + '
+    #@include "awk_functions/lib/utils.awk"
+    
     NR == 1 {
         for (i = 1; i <= NF; i++) {
+            gsub("/^[\t]+", "", $i)
+            gsub("/[\t]+$/", "", $i)
             if ($i == col_name) {
                 target_col = i;
                 break;
             }
         }
+        if (!target_col) {
+            printf("0\t0\t0\t%s is not found\n", col_name);
+            exit;
+        }
     }
-
+    
     NR > 1 {
-        nums[co++] = $target_col;
+        value = $target_col;
+    
+        if (length(value) == 0) {
+            value = "null"
+        }
+    
+        values[value]++;
+    
+        if (values[value] == 1) {
+            uniq_values++;
+        }
+    
     }
-
+    
     END {
-        summary_string(nums)
-        histogram_string(min_percentage)
+        if (uniq_values == 0) {
+            printf("0\t0\t0\t%s column as no value\n", col_name);
+            exit;
+        }
+    
+        split("red green yellow blue magenta cyan white", colors, " ")
+    
+        for (v in values) {
+            percent = int(values[v] / (NR - 1) * 100)
+    
+            if (percent <= minp) {
+                continue;
+            }
+            
+            u_index++
+            color = colors[u_index % 7 + 1]
+    
+            printf("%s\t%d\t%d\t", v, values[v], percent)
+            for (j = 0; j <= 100; j++) {
+                if (j <= percent) {
+                    color_print("█", color)
+                }
+            }
+            printf("\n")
+        }
+    
     }
     '
 
-    $env.awk_functions.histogram = $env.awk_functions.lib.utils + $env.awk_functions.lib.number + '
-        
-    #include "lib/number.awk"
-
+    $env.awk_functions.histogram = $env.awk_functions.lib.utils + '
+    #@include "awk_functions/lib/utils.awk"
+    
     NR == 1 {
         for (i = 1; i <= NF; i++) {
+            gsub("/^[\t]+", "", $i)
+            gsub("/[\t]+$/", "", $i)
             if ($i == col_name) {
                 target_col = i;
                 break;
             }
         }
+        if (!target_col) {
+            printf("0\t0\t0\t%s is not found\n", col_name);
+            exit;
+        }
+        set_min = 0
+        set_max = 0
     }
-
+    
     NR > 1 {
         if (typeof($target_col) == "number" || typeof($target_col) == "strnum") {
-            
-            nums[co++] = $target_col;
+            nums[$target_col]++;
+            if (!set_max || $target_col > max) {
+                max = $target_col;
+                set_max = 1;
+            }
+    
+            if (!set_min || $target_col < min) {
+                min = $target_col;
+                set_min = 1;
+            }
+    
+            if (nums[$target_col] == 1) {
+                uniq_nums++;
+            }
         }
     }
-
+    
     END {
-        summary_num(nums)
-        histogram(num_bins)
+        if (uniq_nums == 0) {
+            printf("0\t0\t0\t%s is not number type\n", col_name);
+            exit;
+        }
+        if (!num_bins) {
+            num_bins = 50;
+        }
+    
+        if (uniq_nums < num_bins) {
+            num_bins = uniq_nums;
+        }
+    
+        range = max - min
+        if (range == 0) {
+            range = 1;
+        }
+    
+        bin_size = range / num_bins;
+    
+        for (n in nums) {
+            bin = int((n - min) / bin_size);
+            bins[bin] += nums[n];
+        }
+        split("red green yellow blue magenta cyan white", colors, " ")
+    
+        for (i = 1; i <= num_bins; i++) {
+            percent = bins[i] / (NR - 1) * 100
+            
+            u_index++
+            color = colors[u_index % 7 + 1]
+    
+            printf("%s\t%s\t%d\t", min + bin_size * (i - 1), min + bin_size * i, percent)
+            for (j = 0; j <= 100; j++) {
+                if (j <= percent) {
+                    color_print("█", color)
+                }
+            }
+            printf("\n")
+        }
+    
     }
     '
 
@@ -647,8 +745,9 @@ export def "nk cate_plot" [
     let minp_param =  "min_percentage=" + ($minp | into string)
     ^gawk -v $col_name_param -v $minp_param -F $sep $awk_code $file | lines | split column "\t" | 
     str trim | 
-    rename "Category" "Plot" "Percent" |
-    upsert Percent {|row| $row.Percent | into float}
+    rename "Category" "Count" "Percent" "Bar" |
+    upsert Percent {|row| $row.Percent | into float} |
+    sort-by Percent
 }
 
 # Plot histogram
