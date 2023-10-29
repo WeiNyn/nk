@@ -64,13 +64,14 @@ END {
     }
     split("red green yellow blue magenta cyan white", colors, " ")
 
+    print("From\tTo\tCount\tPercent\tBar")
     for (i = 1; i <= num_bins; i++) {
         percent = bins[i] / (NR - 1) * 100
         
         u_index++
         color = colors[u_index % 7 + 1]
 
-        printf("%s\t%s\t%d\t", min + bin_size * (i - 1), min + bin_size * i, percent)
+        printf("%s\t%s\t%d\t%f\t", min + bin_size * (i - 1), min + bin_size * i, bins[i], percent)
         for (j = 0; j <= 100; j++) {
             if (j <= percent) {
                 color_print("█", color)

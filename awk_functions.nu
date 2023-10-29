@@ -266,8 +266,8 @@ export-env {
                                     types[r] = "boolean"
                             }
                     }
-                }a
-                examples[r] = $i
+                    examples[r] = $i
+                }
             }
         }
     }
@@ -480,7 +480,8 @@ export-env {
     '
 
     $env.awk_functions.cate_plot = $env.awk_functions.lib.utils + '
-    #@include "awk_functions/lib/utils.awk"
+    #include "lib/number.awk"
+    # @include "awk_functions/lib/utils.awk"
     
     NR == 1 {
         for (i = 1; i <= NF; i++) {
@@ -520,6 +521,7 @@ export-env {
     
         split("red green yellow blue magenta cyan white", colors, " ")
     
+        print("Value\tCount\tPercent\tBar")
         for (v in values) {
             percent = int(values[v] / (NR - 1) * 100)
     
@@ -543,7 +545,8 @@ export-env {
     '
 
     $env.awk_functions.histogram = $env.awk_functions.lib.utils + '
-    #@include "awk_functions/lib/utils.awk"
+    #include "lib/number.awk"
+    # @include "awk_functions/lib/utils.awk"
     
     NR == 1 {
         for (i = 1; i <= NF; i++) {
@@ -607,13 +610,14 @@ export-env {
         }
         split("red green yellow blue magenta cyan white", colors, " ")
     
+        print("From\tTo\tCount\tPercent\tBar")
         for (i = 1; i <= num_bins; i++) {
             percent = bins[i] / (NR - 1) * 100
             
             u_index++
             color = colors[u_index % 7 + 1]
     
-            printf("%s\t%s\t%d\t", min + bin_size * (i - 1), min + bin_size * i, percent)
+            printf("%s\t%s\t%d\t%f\t", min + bin_size * (i - 1), min + bin_size * i, bins[i], percent)
             for (j = 0; j <= 100; j++) {
                 if (j <= percent) {
                     color_print("█", color)
@@ -626,24 +630,39 @@ export-env {
     '
 
     $env.awk_functions.values_count = '
-        
     NR == 1 {
         for (i = 1; i <= NF; i++) {
+            gsub("/^[\t]+", "", $i)
+            gsub("/[\t]+$/", "", $i)
             if ($i == col_name) {
                 target_col = i;
                 break;
             }
         }
+        if (!target_col) {
+            printf("0\t0\t0\t%s is not found\n", col_name);
+            exit;
+        }
     }
-
+    
     NR > 1 {
-        vals[$target_col]++;
+        value = $target_col;
+    
+        if (length(value) == 0) {
+            value = "null";
+        }
+    
+        vals[value]++;
     }
-
+    
     END {
-        printf("Value\tCount\n")
+        if (length(vals) == 0) {
+            exit;
+        }
+    
+        printf("Value\tCount\tPercent\n")
         for (v in vals) {
-            printf("%s\t%d\n", v, vals[v]);
+            printf("%s\t%d\t%f\n", v, vals[v], vals[v] / (NR - 1) * 100);
         }
     }
     '
@@ -744,8 +763,7 @@ export def "nk cate_plot" [
     let col_name_param = "col_name=" + $col_name
     let minp_param =  "min_percentage=" + ($minp | into string)
     ^gawk -v $col_name_param -v $minp_param -F $sep $awk_code $file | lines | split column "\t" | 
-    str trim | 
-    rename "Category" "Count" "Percent" "Bar" |
+    str trim | headers |
     upsert Percent {|row| $row.Percent | into float} |
     sort-by Percent
 }
@@ -761,9 +779,9 @@ export def "nk hist_plot" [
     let col_name_param = "col_name=" + $col_name
     let bins_param =  "num_bins=" + ($bins | into string)
     ^gawk -v $col_name_param -v $bins_param -F $sep $awk_code $file |
-    lines | split column "\t" |
+    lines | split column "\t" | headers |
     str trim |
-    rename "From" "To" "Count" "Plot" |
+    upsert Percent {|row| $row.Percent | into float} |
     upsert Count {|row| $row.Count | into int} |
     upsert From {|row| $row.From | into float} |
     upsert To {|row| $row.To | into float}

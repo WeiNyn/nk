@@ -26,8 +26,8 @@ NR > 1 {
                                 types[r] = "boolean"
                         }
                 }
-            }a
-            examples[r] = $i
+                examples[r] = $i
+            }
         }
     }
 }
